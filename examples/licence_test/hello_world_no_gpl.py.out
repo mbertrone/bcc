@@ -1,0 +1,25 @@
+bpf: Failed to load program: Invalid argument
+0: (b7) r1 = 2593
+1: (6b) *(u16 *)(r10 -4) = r1
+2: (b7) r1 = 1684828783
+3: (63) *(u32 *)(r10 -8) = r1
+4: (18) r1 = 0x57202c6f6c6c6548
+6: (7b) *(u64 *)(r10 -16) = r1
+7: (b7) r1 = 0
+8: (73) *(u8 *)(r10 -2) = r1
+9: (bf) r1 = r10
+10: (07) r1 += -16
+11: (b7) r2 = 15
+12: (85) call bpf_trace_printk#6
+cannot call GPL-restricted function from non-GPL compatible program
+
+Traceback (most recent call last):
+  File "hello_world_no_gpl.py", line 25, in <module>
+    """).trace_print()
+  File "/usr/lib/python2.7/dist-packages/bcc/__init__.py", line 337, in __init__
+    self._trace_autoload()
+  File "/usr/lib/python2.7/dist-packages/bcc/__init__.py", line 1042, in _trace_autoload
+    fn = self.load_func(func_name, BPF.KPROBE)
+  File "/usr/lib/python2.7/dist-packages/bcc/__init__.py", line 377, in load_func
+    (func_name, errstr))
+Exception: Failed to load BPF program kprobe__sys_clone: Invalid argument

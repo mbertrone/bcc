@@ -56,22 +56,7 @@ b = BPF(text = """
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 
-
-/*
- * This struct is stored in the XDP 'data_meta' area, which is located
- * just in-front-of the raw packet payload data.  The meaning is
- * specific to these two BPF programs that use it as a communication
- * channel.  XDP adjust/increase the area via a bpf-helper, and TC use
- * boundary checks to see if data have been provided.
- *
- * The struct must be 4 byte aligned, which here is enforced by the
- * struct __attribute__((aligned(4))).
- */
-//struct meta_info {
-//    __u32 mark;
-//} __attribute__((aligned(4)));
-
-struct meta_info {
+struct packetHeaders {
   uint32_t srcIp;
   uint32_t dstIp;
   uint8_t l4proto;
@@ -81,40 +66,46 @@ struct meta_info {
   uint32_t seqN;
   uint32_t ackN;
   uint8_t connStatus;
-} __attribute__((aligned(4))); // TODO check aligned(4) is correct
-
+};
 
 BPF_TABLE("percpu_array", uint32_t, long, dropcnt, 256);
+
+BPF_TABLE_SHARED("percpu_array", int, struct packetHeaders, packet, 1);
+
+static inline int parse_ipv4(void *data, u64 nh_off, void *data_end) {
+    struct iphdr *iph = data + nh_off;
+
+    if ((void*)&iph[1] > data_end)
+        return 0;
+    return iph->protocol;
+}
+
+static inline int parse_ipv6(void *data, u64 nh_off, void *data_end) {
+    struct ipv6hdr *ip6h = data + nh_off;
+
+    if ((void*)&ip6h[1] > data_end)
+        return 0;
+    return ip6h->nexthdr;
+}
 
 int xdp_prog1(struct CTXTYPE *ctx) {
     struct meta_info *meta;
     void *data, *data_end;
-    int ret;
     long *value;
-    
-    /* Reserve space in-front of data pointer for our meta info.
-     * (Notice drivers not supporting data_meta will fail here!)
-     */
-    ret = bpf_xdp_adjust_meta(ctx, -(int)sizeof(*meta));
-    if (ret < 0)
-        return XDP_ABORTED;
-    
-    /* Notice: Kernel-side verifier requires that loading of
-     * ctx->data MUST happen _after_ helper bpf_xdp_adjust_meta(),
-     * as pkt-data pointers are invalidated.  Helpers that require
-     * this are determined/marked by bpf_helper_changes_pkt_data()
-     */
-    data = (void *)(unsigned long)ctx->data;
-    
-    /* Check data_meta have room for meta_info struct */
-    meta = (void *)(unsigned long)ctx->data_meta;
-    if (meta + 1 > data)
-        return XDP_ABORTED;
 
+    int key = 0;
+    struct packetHeaders *pkt;
+    
+    pkt = packet.lookup(&key);
+    if (pkt == NULL) {
+    // Not possible
+    return XDP_DROP;
+    }
+    
     // saving some metadata in PERCPU array
-    meta_info->srcIp = 0x101010;
-    meta_info->dstIp = 0x202020;
-    meta_info->l4proto = 0x6;
+    pkt->srcIp = 0x101010;
+    pkt->dstIp = 0x202020;
+    pkt->l4proto = 0x6;
 
     int index = 0;
 
@@ -123,6 +114,7 @@ int xdp_prog1(struct CTXTYPE *ctx) {
         *value += 1;
         
     return XDP_DROP;
+
 }
 """, cflags=["-w", "-DRETURNCODE=%s" % ret, "-DCTXTYPE=%s" % ctxtype])
 

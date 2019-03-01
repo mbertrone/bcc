@@ -112,9 +112,9 @@ int xdp_prog1(struct CTXTYPE *ctx) {
         return XDP_ABORTED;
 
     // saving some metadata in PERCPU array
-    meta_info->srcIp = 0x101010;
-    meta_info->dstIp = 0x202020;
-    meta_info->l4proto = 0x6;
+    meta->srcIp = 0x101010;
+    meta->dstIp = 0x202020;
+    meta->l4proto = 0x6;
 
     int index = 0;
 

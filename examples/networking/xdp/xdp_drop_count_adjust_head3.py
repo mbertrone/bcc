@@ -122,16 +122,16 @@ int xdp_prog1(struct CTXTYPE *ctx) {
     struct eth_hdr *ethernet = data;
     
     if (data + sizeof(*ethernet) > data_end)
-        return RX_DROP;
+        return XDP_DROP;
     if (ethernet->proto != bpf_htons(ETH_P_IP)) {
         /*Let everything that is not IP pass. */
-        return RX_OK;
+        return XDP_DROP;
     }
 
     struct iphdr *ip = NULL;
     ip = data + sizeof(struct eth_hdr);
     if (data + sizeof(struct eth_hdr) + sizeof(*ip) > data_end)
-        return RX_DROP;
+        return XDP_DROP;
 
     // saving some metadata in PERCPU array
     meta->srcIp = ip->saddr;
